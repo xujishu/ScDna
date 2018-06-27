@@ -1,0 +1,27 @@
+---
+title:  De novo assembly scRNA-Seq
+author: Jishu Xu
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+      toc: true
+      highlight: tango
+      theme: united
+      fig_width: 8
+      fig_height: 8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(na.action='na.pass')
+setwd('~/Works/github/ScDna/R/')
+source('functions.R')
+```
+# Purpose
+single cell RNA-Seq has been powerful tools to identify differential cell types. The tradional approach to analysis scRNA-Seq have been focus on gene expressio or gene redundance analysis. There are a quite a few challenges in this approach. For example, it is not easy to choose standard normalization method to process scRNA-Seq data considering the sparseness of data, potential batch effect confounded in sequencing data. The traditional way to process scRNA-Seq data are to aligne sequencing data against known genome referennce and quantify the gene/isoform redundance by using known gene annotations. The tradition gene expression will fail to detect or unknown transcripts. Therefore, we propose to use the de novo assembly approach to overcome the challenges in data normalization and to detect unknown transcripts. 
+# Workflow
+First, we use the dataset published in this [paper](https://www.sciencedirect.com/science/article/pii/S0896627317306839?via%3Dihub). We use [Trinity](https://github.com/trinityrnaseq/trinityrnaseq) to accomplish the de novo assembly task. 
+# Trinity De novo assembly
+## Assembly Summary
+
+## Coding Prediction
