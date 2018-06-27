@@ -13,7 +13,7 @@ First source function file
 ```{r}
 source('~/Works/github/ScDna/R/functions.R')
 ```
-We have used `Trinity` to de novo assemble (708 single cells)[]. Traditionally, `Blast` would be used to identify de novo assembled transcripts with model genome. Here we use minimap2 instead to map the assembled transcripts back to human genome+transcriptome and return value `1` if minimap2 has a hit on reference genome and `0` if no hit on reference genome. Then, to make analysis easier and faster, we only focus on the `protein_coding` transcripts.
+We have used `Trinity` to de novo assemble [708 single cells](https://www.sciencedirect.com/science/article/pii/S0896627317306839). Traditionally, `Blast` would be used to identify de novo assembled transcripts with model genome. Here we use minimap2 instead to map the assembled transcripts back to human genome+transcriptome and return value `1` if minimap2 has a hit on reference genome and `0` if no hit on reference genome. Then, to make analysis easier and faster, we only focus on the `protein_coding` transcripts.
 
 # De Novo Assembled Transcripts
 ```{r}
@@ -52,7 +52,7 @@ hd.log<-log(hd+1,base=2)
 
 Use scaled hamming distance
 ```{r}
-X<- cnt.dd
+X<- hd.log
 ```
 Run tSNE to visualize matrix
 ```{r}
@@ -60,7 +60,7 @@ hd.tsne<-Rtsne(X,check_duplicates = FALSE)
 df<-data.frame("X1"=hd.tsne$Y[,1],"X2"=hd.tsne$Y[,2],meta.sc)
 labels<-paste(df$cell,df$lineage)
 df$labels<-labels
-ggscatter(
+p.raw<-ggscatter(
   df,
   x = "X1",
   y = "X2",
@@ -86,10 +86,11 @@ hd.clusters <- cluster_fast_greedy(hd.grps)
 ```
 project clustering membership onto tSNE plot
 
-```{r}
+```{r fig.height=10, fig.width=20, message=FALSE, warning=FALSE, paged.print=FALSE}
 hd.fc <-  membership(hd.clusters)
 df$membership<-as.factor(hd.fc)
-ggscatter(
+print(p.raw)
+p.snn<-ggscatter(
   df,
   x = "X1",
   y = "X2",
@@ -97,17 +98,22 @@ ggscatter(
   palette = "ucscgb",
   size = 3,
   alpha = 0.9,
-  points= FALSE,
   caption= "tSNE: SNN clustering of de novo assembled transcripts",
   ggtheme = theme_minimal()
 ) + border()+
   xlab('tSNE 1')+
   ylab('tSNE 2')
-
+figure <- ggarrange(p.raw, p.snn,
+                    labels = c("Cell Labels", "SNN Clustering"),
+                    ncol = 2, nrow = 1)
+figure
 ```
 ## kNN Louvain
 
-```{r}
+```{r fig.height=10, fig.width=20, message=FALSE, warning=FALSE, paged.print=FALSE}
 out<-plotTSneClustering(X,hd.tsne,'Louvain')
-print(out$plot)
+figure <- ggarrange(p.raw, out$pl,
+                    labels = c("Cell Labels", "KNN Louvain Cluster"),
+                    ncol = 2, nrow = 1)
+figure
 ```

@@ -1,4 +1,32 @@
-
+liblist <-
+  c(
+    "ggplot2",
+    "MASS",
+    "plyr",
+    "reshape2",
+    "ggpubr",
+    "gridExtra",
+    "ggpmisc",
+    "cowplot",
+    "corrplot",
+    "ggrepel",
+    "optparse",
+    "rsvd",
+    "scran",
+    "igraph",
+    "rtracklayer",
+    "knitr",
+    "mclust",
+    "Rtsne",
+    "factoextra",
+    "edgeR",
+    "gmodels",
+    "RANN",
+    "NMF"
+  )
+for (libname in liblist) {
+  suppressWarnings(suppressMessages(library(libname, character.only = TRUE)))
+}
 hamming_loop <- function(X) {
   d <- matrix(0, nrow = nrow(X), ncol = nrow(X))
   for ( i in 1:(nrow(X) - 1) ) {
@@ -71,7 +99,9 @@ plotTSneClustering <- function(X, tsne, methodname) {
     x = 'X1',
     y = 'X2',
     color = 'value',
-    font.label = 8
-  ) + theme_bw() + ggtitle(paste( methodname, ' Clustering'))
+    size = 3,
+    alpha = 0.9,
+    caption= paste("tSNE: ",methodname," clustering of de novo assembled transcripts")
+  ) + theme_bw() 
   return(list('plot' = pl, 'mem' = mem))
 }
