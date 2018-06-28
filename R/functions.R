@@ -101,7 +101,7 @@ plotTSneClustering <- function(X, tsne, methodname) {
     color = 'value',
     size = 3,
     alpha = 0.9,
-    caption= paste("tSNE: ",methodname," clustering of de novo assembled transcripts")
+    caption= paste("tSNE: ",methodname," clustering ")
   ) + theme_bw() 
   return(list('plot' = pl, 'mem' = mem))
 }

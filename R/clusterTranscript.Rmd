@@ -1,12 +1,16 @@
----
-title: "R Notebook"
-output:
-  html_document:
-    df_print: paged
-  html_notebook:
-    fig_height: 8
-    fig_width: 10
----
+ ---
+ title: HTML report compare data matrix
+ author: Jishu Xu
+ date: "`r format(Sys.time(), '%d %B, %Y')`"
+ output:
+    html_document:
+      toc: true
+      highlight: tango
+      theme: united
+      fig_width: 8
+      fig_height: 8
+ ---
+
 de novo transcriptome assemblies have helped for studying non-model organisms for which a sequenced references genome is unavailable. de novo transcript assemblies also can help for discovering novo transcripts, alternative splicing for model based species, organism, or specific cell types. Here we will explore the de novo assembly and establish some analysis strategies. 
 
 First source function file
@@ -17,38 +21,40 @@ We have used `Trinity` to de novo assemble [708 single cells](https://www.scienc
 
 # De Novo Assembled Transcripts
 ```{r}
-cnt<-read.csv('~/Documents/trinity/Docs/idxstat_T_all_protein_coding.csv',header=T)
+cnt <-
+  read.csv('~/Documents/trinity/Docs/idxstat_T_all_protein_coding.csv',
+  header = T)
 ```
 Load meta information about cells
 ```{r}
-meta<-read.csv('~/Documents/HCA/benchmarking/Sra_meta_groups_iPSC_730.csv')
-#'  filter out bulk samples
-meta.sc<-subset(meta,meta$cell !="population")
-label<-paste(meta.sc$cell,meta.sc$lineage,sep='-')
-meta.sc['label']<-label
+meta <-
+  read.csv('~/Documents/HCA/benchmarking/Sra_meta_groups_iPSC_730.csv')
+  #'  filter out bulk samples
+  meta.sc <- subset(meta, meta$cell != "population")
+  label <- paste(meta.sc$cell, meta.sc$lineage, sep = '-')
+  meta.sc['label'] <- label
 ```
 remove bulk sequencing samples from assembled data
 ```{r}
-cnt.dd<-cnt[,-c(1:2)]
-cnt.hh<-colnames(cnt.dd)
-mlist<-match(meta.sc$sra,cnt.hh)
-cnt.dd<-cnt.dd[,mlist]
+cnt.dd <- cnt[, -c(1:2)]
+cnt.hh <- colnames(cnt.dd)
+mlist <- match(meta.sc$sra, cnt.hh)
+cnt.dd <- cnt.dd[, mlist]
 # convert greater than 1 value to 1
-cnt.dd[cnt.dd>1] <- 1
+cnt.dd[cnt.dd > 1] <- 1
 ```
 
-# Hamming Distance
+## Hamming Distance
 calculate hamming distance
 ```{r}
-x<-as.matrix(cnt.dd)
-hd<- hamming_binary(x)
-nn<-nrow(x)
-hd.r<-hd/nn
-hd.log<-log(hd+1,base=2)
+x <- as.matrix(cnt.dd)
+hd <- hamming_binary(x)
+nn <- nrow(x)
+hd.r <- hd / nn
+hd.log <- log(hd + 1, base = 2)
 ```
 
-# tSNE visualization
-
+## tSNE visualization
 
 Use scaled hamming distance
 ```{r}
@@ -56,11 +62,93 @@ X<- hd.log
 ```
 Run tSNE to visualize matrix
 ```{r}
-hd.tsne<-Rtsne(X,check_duplicates = FALSE)
-df<-data.frame("X1"=hd.tsne$Y[,1],"X2"=hd.tsne$Y[,2],meta.sc)
-labels<-paste(df$cell,df$lineage)
-df$labels<-labels
-p.raw<-ggscatter(
+hd.tsne <- Rtsne(X, check_duplicates = FALSE)
+df <- data.frame("X1" = hd.tsne$Y[, 1], "X2" = hd.tsne$Y[, 2], meta.sc)
+labels <- paste(df$cell, df$lineage)
+df$labels <- labels
+p.raw <- ggscatter(
+df,
+x = "X1",
+y = "X2",
+color = "labels",
+palette = "ucscgb",
+size = 3,
+alpha = 0.9,
+caption = "tSNE: de novo assembled transcripts",
+ggtheme = theme_minimal()
+) + border() +
+xlab('tSNE 1') +
+ylab('tSNE 2')
+```
+ 
+## kNN Louvain Clustering
+
+```{r fig.height=10, fig.width=20, message=FALSE, warning=FALSE, paged.print=FALSE}
+hd.out<-plotTSneClustering(X,hd.tsne,'Louvain')
+figure <- ggarrange(p.raw, hd.out$pl,
+                    labels = c("Cell Labels", "KNN Louvain Cluster"),
+                    ncol = 2, nrow = 1)
+figure
+```
+
+# Cluster of TPM/gene expression matrix
+
+Here we will go traditional approach. Cluster TPM gene expression matrix by using knn and project clustering membership on tSNE plot.
+
+## Process raw data
+```{r}
+tpm <-
+  read.csv(
+  '~/Documents/HCA/pipeline_test/matrics/second_batch/HISAT2RSEM_merged_TPM.csv',
+  header = T
+  )
+  tpm.d <- tpm[,-c(1:2)]
+  rownames(tpm.d) <- tpm[, 1]
+  mlist <- match(meta.sc$sra, colnames(tpm.d))
+  tpm.d <- tpm.d[, mlist]
+```
+
+Filter out genes and cells
+
+```{r}
+nGenes <- apply(tpm.d, 2, function(x) {
+  sum(x > 0)
+})
+mlist <- nGenes > 200
+n.genes <- apply(tpm.d[, mlist], 1, function(x) {
+sum(x > 0)
+})
+n.sd <- apply(tpm.d[, mlist], 1, sd)
+nlist <- n.genes > 100 & n.sd > 0.2
+tpm.final <- tpm.d[nlist, mlist]
+dim(tpm.final)
+tpm.final.log2 <- log(tpm.final + 1, base = 2)
+```
+
+## Normalization
+Use TMM method to normalize TPM 
+```{r}
+tpm.tmm <- DGEList(counts = tpm.final)
+tpm.tmm <- calcNormFactors(tpm.tmm, method = "TMM")
+tpm.tmm.lcpm <- cpm(tpm.tmm, log = TRUE)
+```
+
+## run tSNE
+project tpm onto tSNE. 
+```{r}
+tpm.tsne <- Rtsne(
+  t(tpm.tmm.lcpm),
+  check_duplicates = FALSE,
+  dims = 2,
+  perplexity = 30,
+  max_iter = 500,
+  verbose = FALSE
+  )
+df <-
+  data.frame("X1" = tpm.tsne$Y[, 1], "X2" = tpm.tsne$Y[, 2], meta.sc)
+labels <- paste(df$cell, df$lineage)
+df$labels <- labels
+tpm.raw <- ggscatter(
   df,
   x = "X1",
   y = "X2",
@@ -68,52 +156,41 @@ p.raw<-ggscatter(
   palette = "ucscgb",
   size = 3,
   alpha = 0.9,
-  caption= "tSNE: de novo assembled transcripts",
+  caption = "tSNE: log2-TPM",
   ggtheme = theme_minimal()
-) + border()+
-  xlab('tSNE 1')+
+  ) + border() +
+  xlab('tSNE 1') +
   ylab('tSNE 2')
 ```
-# Clustering
 
-## SNN-Cliq clusering
+## Run PCA
+Use random PCA 
+```{r}
+tpm.pcs <- rpca(tpm.tmm.lcpm, scale = T,center=T)
+```
 
-First, we used `SNN` to cluster de novo assembled transcripts
+## Run Cluster
+
+Louvain-Jaccard clustering. 
+
+```{r fig.height=10, fig.width=20, message=FALSE, warning=FALSE, paged.print=FALSE}
+tpm.out <-
+  plotTSneClustering(tpm.pcs$rotation[, c(1:50)], tpm.tsne, 'Louvain')
+  figure <- ggarrange(
+  tpm.raw,
+  tpm.out$pl,
+  labels = c("Cell Labels", "KNN Louvain Cluster"),
+  ncol = 2,
+  nrow = 1
+  )
+  figure
+```
+
+# Compare two cluster results
 
 ```{r}
-hd.grps <- buildSNNGraph(X)
-hd.clusters <- cluster_fast_greedy(hd.grps)
-```
-project clustering membership onto tSNE plot
 
-```{r fig.height=10, fig.width=20, message=FALSE, warning=FALSE, paged.print=FALSE}
-hd.fc <-  membership(hd.clusters)
-df$membership<-as.factor(hd.fc)
-print(p.raw)
-p.snn<-ggscatter(
-  df,
-  x = "X1",
-  y = "X2",
-  color = "membership",
-  palette = "ucscgb",
-  size = 3,
-  alpha = 0.9,
-  caption= "tSNE: SNN clustering of de novo assembled transcripts",
-  ggtheme = theme_minimal()
-) + border()+
-  xlab('tSNE 1')+
-  ylab('tSNE 2')
-figure <- ggarrange(p.raw, p.snn,
-                    labels = c("Cell Labels", "SNN Clustering"),
-                    ncol = 2, nrow = 1)
-figure
-```
-## kNN Louvain
+adjustedRandIndex(df$labels,tpm.out$mem)
+adjustedRandIndex(df$labels,hd.out$mem)
 
-```{r fig.height=10, fig.width=20, message=FALSE, warning=FALSE, paged.print=FALSE}
-out<-plotTSneClustering(X,hd.tsne,'Louvain')
-figure <- ggarrange(p.raw, out$pl,
-                    labels = c("Cell Labels", "KNN Louvain Cluster"),
-                    ncol = 2, nrow = 1)
-figure
 ```

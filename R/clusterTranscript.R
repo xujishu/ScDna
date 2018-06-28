@@ -47,7 +47,7 @@ p.hd<-ggscatter(
 # count matrix or TPM
 tpm<-read.csv('~/Documents/HCA/pipeline_test/matrics/second_batch/HISAT2RSEM_merged_TPM.csv',header=T)
 tpm.d<-tpm[,-c(1:2)]
-tpm.d[tpm.d>0]<- 1
+tpm.d[tpm.d>5]<- 1
 mlist<-match(meta.sc$sra,colnames(tpm.d))
 tpm.d<- tpm.d[,mlist]
 tpm.hd<-hamming_binary(as.matrix(tpm.d))
